@@ -82,8 +82,8 @@ int main(int argc, const char* argv[])
         flags |= OE_ENCLAVE_FLAG_SIMULATE;
     }
 
-    // Enable switchless and configure host worker number
-    oe_enclave_setting_context_switchless_t switchless_setting = {1, 0};
+    // Enable switchless and configure 1 host and 1 enclave worker
+    oe_enclave_setting_context_switchless_t switchless_setting = {1, 1};
     oe_enclave_setting_t settings[] = {{
         .setting_type = OE_ENCLAVE_SETTING_CONTEXT_SWITCHLESS,
         .u.context_switchless_setting = &switchless_setting,
@@ -113,8 +113,9 @@ int main(int argc, const char* argv[])
 
     fprintf(
         stderr,
-        "enclave_add_N_switchless(): %d + %d = %d. Time spent: "
+        "%d host_increment_switchless() calls: %d + %d = %d. Time spent: "
         "%d ms\n",
+        n,
         oldm,
         n,
         m,
@@ -136,8 +137,54 @@ int main(int argc, const char* argv[])
 
     fprintf(
         stderr,
-        "enclave_add_N_regular(): %d + %d = %d. Time spent: "
+        "%d host_increment_regular() calls: %d + %d = %d. Time spent: "
         "%d ms\n",
+        n,
+        oldm,
+        n,
+        m,
+        (int)(end - start) / 1000);
+
+    // Execute n ecalls switchlessly
+    start = get_relative_time_in_microseconds();
+    m = oldm;
+    for (int i = 0; i < n; i++)
+    {
+        oe_result_t result = enclave_decrement_switchless(enclave, &m);
+        if (result != OE_OK)
+        {
+            fprintf(
+                stderr, "enclave_decrement_switchless(): result=%u", result);
+        }
+    }
+    end = get_relative_time_in_microseconds();
+    fprintf(
+        stderr,
+        "%d enclave_decrement_switchless() calls: %d - %d = %d. Time spent: "
+        "%d ms\n",
+        n,
+        oldm,
+        n,
+        m,
+        (int)(end - start) / 1000);
+
+    // Execute n regular ecalls
+    start = get_relative_time_in_microseconds();
+    m = oldm;
+    for (int i = 0; i < n; i++)
+    {
+        oe_result_t result = enclave_decrement_regular(enclave, &m);
+        if (result != OE_OK)
+        {
+            fprintf(stderr, "enclave_decrement_regular(): result=%u", result);
+        }
+    }
+    end = get_relative_time_in_microseconds();
+    fprintf(
+        stderr,
+        "%d enclave_decrement_regular() calls: %d - %d = %d. Time spent: "
+        "%d ms\n",
+        n,
         oldm,
         n,
         m,

@@ -22,6 +22,9 @@ enclave
             [user_check] struct _host_worker_context* host_worker_contexts,
             uint64_t num_host_workers);
 
+        public void oe_switchless_enclave_worker_thread_ecall(
+            [user_check] struct _enclave_worker_context* context);
+
     };
 
     untrusted

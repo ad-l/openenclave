@@ -16,7 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---------------------
 
 ### Added
-- Support for Simulation Mode on Windows.
+- Support `transition_using_threads` EDL attribute for ecalls in oeedger8r.
+  OE SDK now supports both switchless OCALLs and ECALLs.
 
 ### Fixed 
 - Fixed Jenkins pipeline to produce a valid open-enclave NuGet package. Fixes #2523. 

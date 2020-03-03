@@ -7,6 +7,7 @@
 #include <openenclave/internal/atomic.h>
 #include <openenclave/internal/raise.h>
 #include <openenclave/internal/utils.h>
+#include "handle_ecall.h"
 #include "switchless_t.h"
 
 // The number of host thread workers. Initialized by host through ECALL
@@ -199,4 +200,55 @@ oe_result_t oe_switchless_call_host_function(
         output_buffer_size,
         output_bytes_written,
         true /* switchless */);
+}
+
+void oe_switchless_enclave_worker_thread_ecall(
+    oe_enclave_worker_context_t* context)
+{
+    // Ensure that the context lies in host memory.
+    if (!oe_is_outside_enclave(context, sizeof(*context)))
+        return;
+
+    // Prevent speculative execution.
+    oe_lfence();
+
+    const uint64_t spin_count_threshold = context->spin_count_threshold;
+    while (!context->is_stopping)
+    {
+        volatile oe_call_enclave_function_args_t* local_call_arg = NULL;
+        if ((local_call_arg = context->call_arg) != NULL)
+        {
+            // Handle the switchless call, but do not clear the slot yet. Since
+            // the slot is not empty, any new incoming switchless call request
+            // will be scheduled in another available work thread and get
+            // handled immediately.
+            oe_handle_call_enclave_function((uint64_t)local_call_arg);
+
+            // After handling the switchless call, mark this worker thread
+            // as free by clearing the slot.
+            OE_ATOMIC_MEMORY_BARRIER_RELEASE();
+            context->call_arg = NULL;
+
+            // Reset spin count for next message.
+            context->total_spin_count += context->spin_count;
+            context->spin_count = 0;
+        }
+        else
+        {
+            // If there is no message, increment spin count until threshold is
+            // reached.
+            if (++context->spin_count >= spin_count_threshold)
+            {
+                // Reset spin count and return to host to sleep.
+                context->total_spin_count += context->spin_count;
+                context->spin_count = 0;
+                break;
+            }
+
+            // In Release builds, the following pause has been observed to be
+            // essential. Without it, the worker thread seems to hog the CPU,
+            // preventing host threads from posting switchless ecall messages.
+            asm volatile("pause");
+        }
+    }
 }
