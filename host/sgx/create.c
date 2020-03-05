@@ -11,7 +11,6 @@
 
 #elif defined(_WIN32)
 #include <windows.h>
-#include "windows/exception.h"
 
 static char* get_fullpath(const char* path)
 {
@@ -451,13 +450,8 @@ static oe_result_t _configure_enclave(
                     settings[i]
                         .u.context_switchless_setting->max_enclave_workers;
 
-                // Switchless ecalls are not enabled yet. Make sure the max
-                // number of enclave workers is always 0.
-                if (max_enclave_workers != 0)
-                    OE_RAISE(OE_INVALID_PARAMETER);
-
-                OE_CHECK(
-                    oe_start_switchless_manager(enclave, max_host_workers));
+                OE_CHECK(oe_start_switchless_manager(
+                    enclave, max_host_workers, max_enclave_workers));
                 break;
             }
             default:
@@ -752,7 +746,6 @@ oe_result_t oe_create_enclave(
         OE_RAISE(OE_OUT_OF_MEMORY);
 
 #if defined(_WIN32)
-
     /* Create Windows events for each TCS binding. Enclaves use
      * this event when calling into the host to handle waits/wakes
      * as part of the enclave mutex and condition variable
